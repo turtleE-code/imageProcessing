@@ -3,8 +3,8 @@
 ## GaussianFilter
 - 画像のエッジ(輪郭)を保持しつつ、ぼかす
 
-左：ノイズを加えた画像 <br>
-右：左の画像にガウシアンフィルタをかけてぼかし、ノイズを除去した画像
+上：ノイズを加えた画像 <br>
+下：左の画像にガウシアンフィルタをかけてぼかし、ノイズを除去した画像
 
 <img src="GaussianFilter_SIMD/images/color_noise_src.png" width = 45%>
 <img src="GaussianFilter_SIMD/images/color_noise_dst.png" width = 45%>
@@ -13,7 +13,7 @@
 1. 処理に用いられる重みを計算する(mat4, mat8, mat16の画像)	<br>
 重み <br>
 <img src="GaussianFilter_SIMD/images/gauss.png" width = 30%>
-(引用：https://imagingsolution.net/imaging/gaussian/)
+(引用：https://imagingsolution.net/imaging/gaussian/) <br>
 2. 1で計算した画像を用いてフィルタをガウシアンフィルタを計算する
 
 ### GaussianFilter_naive
