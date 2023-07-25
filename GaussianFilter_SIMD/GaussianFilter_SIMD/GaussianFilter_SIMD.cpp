@@ -79,6 +79,7 @@ void GaussianFilter_SIMD(Mat& src, Mat& dst)
 	}
 }
 
+// カーネルサイズ 3 * 3
 void GaussianFilter_naive(Mat& src, Mat& dst)
 {
 	if (src.data != dst.data) src.copyTo(dst);
@@ -133,7 +134,6 @@ int main()
 	Mat src;
 	Mat dst_naive;
 	Mat dst_SIMD;
-	Mat median;
 	resize(src_lenna, src, Size(512, 512));
 
 	if (src.data != dst_SIMD.data) dst_SIMD.create(src.size(), src.type());
