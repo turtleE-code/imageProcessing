@@ -7,77 +7,142 @@ using namespace cv;
 using namespace cp;
 using namespace std;
 
-//template<typename T>
-// 3 * 3
-void GaussianFilter_SIMD(const Mat& src, Mat& dst)
+
+// カーネルサイズ 3 * 3
+void GaussianFilter_SIMD(Mat& src, Mat& dst)
 {
-	/*Mat m8;
-	Mat m4;*/
-	//CV_Assert(W.size().area() == width * height * 3);
+	if (src.data != dst.data) src.copyTo(dst);
+
+	// matX 重み1/xの画像作成
+	Mat mat16, mat8, mat4;
+	if (src.data != mat16.data) mat16.create(src.size(), src.type());
+	if (src.data != mat8.data) mat8.create(src.size(), src.type());
+	if (src.data != mat4.data) mat4.create(src.size(), src.type());
+
 	const int width = src.cols;
 	const int height = src.rows;
 
-	//Mat m16 = Mat::zeros(Size(height, width), CV_8U);
-	Mat m16;
-	Mat m8 = Mat::zeros(Size(height, width), CV_8U);
-	Mat m4 = Mat::zeros(Size(height, width), CV_8U);
+	const float div_16 = 16.0f;
+	const float div_8 = 8.0f;
+	const float div_4 = 4.0f;
+	__m256 div16 = _mm256_broadcast_ss(&div_16);
+	__m256 div8 = _mm256_broadcast_ss(&div_8);
+	__m256 div4= _mm256_broadcast_ss(&div_4);
 
-	if (src.data != dst.data) src.copyTo(dst);
-	//if (src.data != m16.data) src.copyTo(m16);
-	//if (src.data != m8.data) src.copyTo(m8);
-	//if (src.data != m4.data) src.copyTo(m4);
-
-	__m256 Apr, weight1_16, weight2_16, weight4_16;
-	__m256 w16 = _mm256_set1_ps(0.0625f);
-	__m256 w8 = _mm256_set1_ps(0.125);
-	__m256 w4 = _mm256_set1_ps(0.25);
-	__m256 w1 = _mm256_set1_ps(1.0);
-	__m256 w0 = _mm256_set1_ps(0.0);
-	__m256 w2 = _mm256_set1_ps(2.0f);
-
-	// LUT作成
+	//LUT作成
+	__m256 Apr, w16, w8, w4;
 	for (int y = 0; y < height; y++)
 	{
-		__m256* srcptr = (__m256*)src.ptr<float>(y + 0, 0);
-		__m256* dstptr = (__m256*)dst.ptr<float>(y + 0, 0);
-		__m256* p16 = (__m256*)m16.ptr<float>(y + 0, 0);
-		__m256* p8 = (__m256*)m8.ptr<float>(y + 0, 0);
-		__m256* p4 = (__m256*)m4.ptr<float>(y + 0, 0);
+		__m256* mat16_ptr = (__m256*)mat16.ptr<float>(y, 0);
+		__m256* mat8_ptr = (__m256*)mat8.ptr<float>(y, 0);
+		__m256* mat4_ptr = (__m256*)mat4.ptr<float>(y, 0);
+		float* srcptr = src.ptr<float>(y);
 
-		for (int x = 0; x < width; x += 8)
-		{
-			*dstptr++ = _mm256_setzero_ps();
-			*p16++ = _mm256_mul_ps(*srcptr, w1);
-		}
-	}
-	imshow("m16", m16);
-
-	for (int y = 8; y < height - 8; y++)
-	{
-		__m256* mD0 = (__m256*)dst.ptr<float>(y + 0, 0);
 		for (int x = 8; x < width - 8; x += 8)
 		{
-			//*mD0++ = _mm256_set1_ps(0.0);
-			//*mD0++ = _mm256_mul_ps(*mD0, w16);
+			Apr = _mm256_load_ps(srcptr);
+			w16 = _mm256_div_ps(Apr, div16);
+			w8 = _mm256_div_ps(Apr, div8);
+			w4 = _mm256_div_ps(Apr, div4);
+
+			*mat16_ptr++ = w16;
+			*mat8_ptr++ = w8;
+			*mat4_ptr++ = w4;
 		}
 	}
 
+	// フィルタ計算
+	for (int y = 1; y < height - 1; y++)
+	{
+		float* dstptr = dst.ptr<float>(y);
+
+		__m256* A01ptr = (__m256*)mat16.ptr<float>(y - 1, 7);
+		__m256* A02ptr = (__m256*)mat8.ptr<float>(y - 1, 8);
+		__m256* A03ptr = (__m256*)mat16.ptr<float>(y - 1, 9);
+		__m256* A11ptr = (__m256*)mat8.ptr<float>(y + 0, 7);
+		__m256* A12ptr = (__m256*)mat4.ptr<float>(y + 0, 8);
+		__m256* A13ptr = (__m256*)mat8.ptr<float>(y + 0, 9);
+		__m256* A21ptr = (__m256*)mat16.ptr<float>(y + 1, 7);
+		__m256* A22ptr = (__m256*)mat8.ptr<float>(y + 1, 8);
+		__m256* A23ptr = (__m256*)mat4.ptr<float>(y + 1, 9);
+
+
+		for (int x = 8; x < width - 8; x += 8)
+		{
+			Apr = _mm256_add_ps(*A01ptr++, _mm256_add_ps(*A02ptr++, _mm256_add_ps(*A03ptr++, _mm256_add_ps(*A11ptr++, _mm256_add_ps(*A12ptr++, 
+				_mm256_add_ps(*A13ptr++, _mm256_add_ps(*A21ptr++, _mm256_add_ps(*A22ptr++, *A23ptr++))))))));
+
+
+			_mm256_store_ps(dstptr++, Apr);
+
+		}
+	}
+}
+
+void GaussianFilter_naive(Mat& src, Mat& dst)
+{
+	if (src.data != dst.data) src.copyTo(dst);
+
+	const int width = src.cols;
+	const int height = src.rows;
+
+	// matX 重み1/xの画像作成
+	Mat mat16, mat8, mat4;
+	if (src.data != mat16.data) mat16.create(src.size(), src.type());
+	if (src.data != mat8.data) mat8.create(src.size(), src.type());
+	if (src.data != mat4.data) mat4.create(src.size(), src.type());
+
+	// LUT作成
+	for (int c = 0; c < 3; c++)
+	{
+		for (int y = 0; y < height; y++)
+		{
+			for (int x = 0; x < width; x++)
+			{
+				mat16.at<Vec3b>(y, x)[c] = src.at<Vec3b>(y, x)[c] / 16;
+				mat8.at<Vec3b>(y, x)[c] = src.at<Vec3b>(y, x)[c] / 8;
+				mat4.at<Vec3b>(y, x)[c] = src.at<Vec3b>(y, x)[c] / 4;
+			}
+		}
+	}
+	
+	// デバック用出力
+	/*imshow("mat16", mat16);
+	imshow("mat8", mat8);
+	imshow("mat4", mat4);*/
+
+	// フィルタ計算
+	for (int c = 0; c < 3; c++)
+	{
+		for (int y = 1; y < height - 1; y++)
+		{
+			for (int x = 1; x < width - 1; x++)
+			{
+				dst.at<Vec3b>(y, x)[c] = mat16.at<Vec3b>(y - 1, x - 1)[c] + mat8.at<Vec3b>(y - 1, x)[c] + mat16.at<Vec3b>(y - 1, x + 1)[c]
+					+ mat8.at<Vec3b>(y, x - 1)[c] + mat4.at<Vec3b>(y, x)[c] + mat8.at<Vec3b>(y, x + 1)[c]
+					+ mat16.at<Vec3b>(y + 1, x - 1)[c] + mat8.at<Vec3b>(y + 1, x)[c] + mat16.at<Vec3b>(y + 1, x + 1)[c];
+			}
+		}
+	}
 }
 
 
 int main()
 {
-	Mat src_ = cv::imread("lenna.png");
+	Mat src_lenna = cv::imread("lenna.png", 1);
 	Mat src;
-	Mat dst_original;
+	Mat dst_naive;
 	Mat dst_SIMD;
-	resize(src_, src, Size(512, 512));
-	//addNoise(src, src, 50);
+	Mat median;
+	resize(src_lenna, src, Size(512, 512));
+
+	if (src.data != dst_SIMD.data) dst_SIMD.create(src.size(), src.type());
+	addNoise(src, src, 50);
 
 	int key = 0;
 
-	Timer original_t("a", cp::TIME_MSEC, false);
-	Timer simd_t("a", cp::TIME_MSEC, false);
+	Timer t_naive("a", cp::TIME_MSEC, false);
+	Timer t_simd("a", cp::TIME_MSEC, false);
 	ConsoleImage ci;
 
 	while (key != 'q')
@@ -86,36 +151,22 @@ int main()
 		imshow("src", src);
 
 		{
-			original_t.start();
-			GaussianBlur(src, dst_original, Size(5, 5), 5);
-			original_t.getpushLapTime();
+			t_naive.start();
+			GaussianFilter_naive(src, dst_naive);
+			t_naive.getpushLapTime();
 		}
-		ci("original time %f ms, %f", original_t.getLapTimeMedian());
-		//imshow("dst", dst_original);
+		ci("naive time %f ms, %f", t_naive.getLapTimeMedian());
+		imshow("dst_naive", dst_naive);
 
 		{
-			simd_t.start();
+			t_simd.start();
 			GaussianFilter_SIMD(src, dst_SIMD);
-			simd_t.getpushLapTime();
+			t_simd.getpushLapTime();
 		}
-		ci("SIMD time %f ms, %f", simd_t.getLapTimeMedian());
+		ci("SIMD time %f ms, %f", t_simd.getLapTimeMedian());
 		imshow("dst_SIMD", dst_SIMD);
-		/*original_t.getpushLapTime();
-		original_t.getLapTimeMedian();*/
+
 		ci.show();
-		//std::cout << "Hello World!\n";
 		key = waitKey(1);
 	}
-    //std::cout << "Hello World!\n";
 }
-
-// プログラムの実行: Ctrl + F5 または [デバッグ] > [デバッグなしで開始] メニュー
-// プログラムのデバッグ: F5 または [デバッグ] > [デバッグの開始] メニュー
-
-// 作業を開始するためのヒント: 
-//    1. ソリューション エクスプローラー ウィンドウを使用してファイルを追加/管理します 
-//   2. チーム エクスプローラー ウィンドウを使用してソース管理に接続します
-//   3. 出力ウィンドウを使用して、ビルド出力とその他のメッセージを表示します
-//   4. エラー一覧ウィンドウを使用してエラーを表示します
-//   5. [プロジェクト] > [新しい項目の追加] と移動して新しいコード ファイルを作成するか、[プロジェクト] > [既存の項目の追加] と移動して既存のコード ファイルをプロジェクトに追加します
-//   6. 後ほどこのプロジェクトを再び開く場合、[ファイル] > [開く] > [プロジェクト] と移動して .sln ファイルを選択します
