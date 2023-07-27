@@ -69,7 +69,7 @@ void GaussianFilter_SIMD(Mat& src, Mat& dst)
 		__m256* A13ptr = (__m256*)mat8.ptr<float>(y + 0, 9);
 		__m256* A21ptr = (__m256*)mat16.ptr<float>(y + 1, 7);
 		__m256* A22ptr = (__m256*)mat8.ptr<float>(y + 1, 8);
-		__m256* A23ptr = (__m256*)mat4.ptr<float>(y + 1, 9);
+		__m256* A23ptr = (__m256*)mat16.ptr<float>(y + 1, 9);
 
 
 		for (int x = 8; x < width - 8; x += 8)
