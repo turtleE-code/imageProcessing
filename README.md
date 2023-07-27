@@ -14,8 +14,8 @@ Single Instruction/Multiple Data (単一命令/複数データ) <br>
 画像をぼかすことによって、ノイズのある画像に対してノイズの影響を抑えることができます。 <br>
 簡単な計算であるメディアンフィルター(下部参考)と比べて輪郭が保持されていることが分かります。
 
-上：ノイズを加えた画像 <br>
-下：上の画像にガウシアンフィルタをかけてぼかし、ノイズを除去した画像
+左：ノイズを加えた画像 <br>
+右：左の画像にガウシアンフィルタをかけてぼかし、ノイズを軽減した画像 <br>
 
 <img src="GaussianFilter_SIMD/images/color_noise_src.png" width = 45%>
 <img src="GaussianFilter_SIMD/images/color_noise_dst.png" width = 45%>
@@ -46,6 +46,6 @@ _mm256_add_ps
 
 
 ## 参考
-上：メディアンフィルタ　下：ガウシアンフィルタ <br>
+左：メディアンフィルタ　右：ガウシアンフィルタ <br>
 <img src="GaussianFilter_SIMD/images/median.png" width = 45%>
 <img src="GaussianFilter_SIMD/images/color_noise_dst.png" width = 45%>
