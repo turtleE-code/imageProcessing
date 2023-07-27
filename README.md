@@ -4,11 +4,18 @@ C++で実装しています <br>
 OpenCV(https://opencv.org/) <br>
 OpenCP(https://github.com/norishigefukushima/OpenCP)
 
+SIMD演算　<br>
+Single Instruction/Multiple Data (単一命令/複数データ) <br>
+1つの演算命令で複数のデータを同時に計算できる演算手法です<br>
+今回は1つの命令で8つの画素を同時に計算しています
+
 ## GaussianFilter
-- 画像のエッジ(輪郭)を保持しつつ、ぼかす
+計算が少し複雑になる代わりに、画像のエッジ(輪郭)を保持しつつ、ぼかすことができるフィルター実装です<br>
+画像をぼかすことによって、ノイズのある画像に対してノイズの影響を抑えることができます。 <br>
+簡単な計算であるメディアンフィルター(下部参考)と比べて輪郭が保持されていることが分かります。
 
 上：ノイズを加えた画像 <br>
-下：左の画像にガウシアンフィルタをかけてぼかし、ノイズを除去した画像
+下：上の画像にガウシアンフィルタをかけてぼかし、ノイズを除去した画像
 
 <img src="GaussianFilter_SIMD/images/color_noise_src.png" width = 45%>
 <img src="GaussianFilter_SIMD/images/color_noise_dst.png" width = 45%>
@@ -31,11 +38,14 @@ _mm256_add_ps
 <img src="GaussianFilter_SIMD/images/add.png" width = 100%>
 
 ## 演算速度結果
-naive実装：6.51ms	SIMD実装：0.75ms <br>
-およそ8.6倍の高速化 <br>
-<img src="GaussianFilter_SIMD/images/result.png" width = 60%>
+- naive実装：7.90ms
+- SIMD実装：2.07ms <br>
+およそ3.8倍の高速化を実現しています <br>
+
+<img src="GaussianFilter_SIMD/images/console.png" width = 60%>
 
 
 ## 参考
-メディアンフィルタ <br>
+上：メディアンフィルタ　下：ガウシアンフィルタ <br>
 <img src="GaussianFilter_SIMD/images/median.png" width = 45%>
+<img src="GaussianFilter_SIMD/images/color_noise_dst.png" width = 45%>
